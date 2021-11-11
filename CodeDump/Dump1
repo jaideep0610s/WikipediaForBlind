@@ -1,0 +1,30 @@
+import speech_recognition as sr
+import pyttsx3
+import winsound
+
+r = sr.Recognizer()
+print("speak now ")
+winsound.Beep(440, 500)
+
+with sr.Microphone() as source:
+    while True:
+        r.adjust_for_ambient_noise(source)
+        audio_data = r.record(source, duration=5) #duration se 5 sec ka wait
+        winsound.Beep(440, 500)
+        print("Recognizing...")
+        try:
+            text = r.recognize_google(audio_data)
+            valid_text = ['next heading', 'previous heading']
+            #res = [ele for ele in valid_text if(ele in text)]
+            if r.recognize_google(audio_data)=="next heading":
+                print("You said " + r.recognize_google(audio_data))
+                #func for next heading put here
+            if r.recognize_google(audio_data)=="previous heading":
+                print("You said " + r.recognize_google(audio_data))
+                #func for prev heading put here
+            if r.recognize_google(audio_data)=="stop":
+                print("You said " + r.recognize_google(audio_data))
+                break
+        except:
+            msg=("Sorry, I did not get that")
+            print(msg)
