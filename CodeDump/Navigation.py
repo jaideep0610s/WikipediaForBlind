@@ -14,13 +14,13 @@ r = sr.Recognizer()
 S = requests.Session()
 
 engine = pyttsx3.init() #tts engine
-inp = "Enter topic to be searched " 
+inp = "Say the topic to be searched " 
 engine.say(inp) # asli text to speech
 engine.runAndWait()
 with sr.Microphone() as source:
     r.adjust_for_ambient_noise(source)
-    audio_data = r.record(source, duration=5)
     AppKit.NSBeep()
+    audio_data = r.record(source, duration=5)
     try:
         # using google speech recognition
         search = r.recognize_google(audio_data)
@@ -80,8 +80,8 @@ while(curr!= len(headings)):
     #inp = input("Do you want to read this (y/next/prev): ")
     with sr.Microphone() as source:
         r.adjust_for_ambient_noise(source)
-        audio_data = r.record(source, duration=5)
         AppKit.NSBeep()
+        audio_data = r.record(source, duration=5)
         try:
         # using google speech recognition
             text = r.recognize_google(audio_data)
@@ -119,7 +119,10 @@ while(curr!= len(headings)):
                 R = S.get(url=URL, params=PARAMS)
                 DATA = R.json()
 
-                print(DATA["parse"]["wikitext"]["*"])
+                data = DATA["parse"]["wikitext"]["*"]
+                engine.say(data) # asli text to speech
+                engine.runAndWait()
+                #print(DATA["parse"]["wikitext"]["*"])
                 curr_section += len(headings[curr])
                 curr+=1
             
