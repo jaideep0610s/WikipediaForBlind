@@ -8,8 +8,81 @@ import wikipedia
 from sklearn.feature_extraction.text import TfidfVectorizer
 import openpyxl
 from openpyxl import load_workbook
+import wikipedia
+import wikipediaapi
+import re, string
+import heapq
+import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
+
+def get_summary(url,q):
+    title = url.split("/")[-1].split("_")
+    #print(title)
+    title = ' '.join(title)
+    #print(title)
+    wiki = wikipediaapi.Wikipedia('en')
+    page = wiki.page(title)
+    q = str.title(q)
+    #print(q)
+    secs = page.sections
+    sec_dic = {}
+    for s in page.sections:
+        ss_list = []
+        for ss in s.sections:
+            ss_list.append(ss.title)
+            #print(ss.title)
+        sec_dic[s.title] = ss_list
+        #print("###########")
+    section = [s.title for s in page.sections]
+    p = wikipedia.page(title) # Will take the Machine Learning URL
+    sentences = p.section(q) 
+    for ss in sec_dic[q]:
+        sentences+= p.section(ss)
+    print(sentences)
+    print("#######################################################################################################################")
+    article_text = re.sub(r'\[[0-9]*\]', ' ', sentences)
+    article_text = re.sub(r'\s+', ' ', article_text)
+
+    formatted_article_text = re.sub('[^a-zA-Z]', ' ', article_text )
+    formatted_article_text = re.sub(r'\s+', ' ', formatted_article_text)
 
 
+    sentence_list = nltk.sent_tokenize(article_text)
+    stopwords = nltk.corpus.stopwords.words('english')
+    #print(sentence_list)
+
+    word_frequencies = {}
+    for word in nltk.word_tokenize(formatted_article_text):
+        if word not in stopwords:
+            if word not in word_frequencies.keys():
+                word_frequencies[word] = 1
+            else:
+                word_frequencies[word] += 1
+        maximum_frequency = max(word_frequencies.values())
+
+    for word in word_frequencies.keys():
+        word_frequencies[word] = (word_frequencies[word]/maximum_frequency)
+        sentence_scores = {}
+
+
+    for sent in sentence_list:
+        for word in nltk.word_tokenize(sent.lower()):
+            if word in word_frequencies.keys():
+                if len(sent.split(' ')) < 30:
+                    if sent not in sentence_scores.keys():
+                        sentence_scores[sent] = word_frequencies[word]
+                    else:
+                        sentence_scores[sent] += word_frequencies[word]
+
+
+    summary_sentences = heapq.nlargest(7, sentence_scores, key=sentence_scores.get)
+
+    summary = ' '.join(summary_sentences)
+    print("#######################################################################################################################")
+    print(summary)
+    engine.say(summary)
+    engine.runAndWait()
 
 
 def get_intro(url):
@@ -74,6 +147,7 @@ def pparse(pagedic,url, a_dic):
                 break
             else:
                 pass
+            
 
 def get_similarity(intro1, intro2):
     corpus = [intro1,intro2]
@@ -135,7 +209,7 @@ def navigation(url):
         engine.setProperty('voice', voices[0].id)
         engine.say(heading)
         engine.runAndWait()
-        ques = ("Do you want to read this")
+        ques = ("Do you want to know about this?")
         engine.setProperty('voice', voices[0].id)
         engine.say(ques)
         engine.runAndWait()
@@ -170,94 +244,131 @@ def navigation(url):
                         continue          
                     curr-=1
                 if text == "yes":
-                    de_split = pagdic[heading].split("$$")
-                    #print(de_split)
-                    for po in range(0, len(de_split), 2):
-                        txt1 = de_split[po]
-                        txt2 = de_split[po+1]
-                        print(txt1, txt2)
-                        if(txt1 != ''):
+                    engine = pyttsx3.init() #tts engine
+                    ques = ("Do you want to read the summary")
+                    engine.setProperty('voice', voices[0].id)
+                    engine.say(ques)
+                    engine.runAndWait()
+                    with sr.Microphone() as source:
+                        r.adjust_for_ambient_noise(source)
+                        AppKit.NSBeep()
+                        audio_data = r.record(source, duration=5)
+                        try:
+                        # using google speech recognition
+                            text = r.recognize_google(audio_data)
+                            if text == 'yes':
+                                get_summary(url,heading)
+                        except:
+                            comm=("Sorry, I did not get that")
                             engine.setProperty('voice', voices[0].id)
-                            engine.say(txt1)
-                        engine.setProperty('voice', voices[0].id)
-                        engine.say(txt2)
-                        engine.runAndWait()
-                        if txt2 not in final_a_tags:
-                            continue
-                        ques = "Do you want to read more about " + txt2
-                        engine.setProperty('voice', voices[0].id)
-                        engine.say(ques)
-                        engine.runAndWait()
-                        with sr.Microphone() as source:
-                            r.adjust_for_ambient_noise(source)
-                            AppKit.NSBeep()
-                            audio_data = r.record(source, duration=5)
-                            try:
-                                # using google speech recognition
-                                text = r.recognize_google(audio_data)
-                                if text == 'no':
-                                    continue
-                                elif text == 'go back':
-                                    return 1
-                                elif text == 'stop':
-                                    comm ="Thanks for using our application"
-                                    engine.setProperty('voice', voices[0].id)
-                                    engine.say(comm) 
-                                    engine.runAndWait()
-                                    return -1
-                                elif text == "next heading":
-                                    if(curr == len(headings) -1):
-                                        comm ="We have reached the end of the page."
+                            engine.say(comm)
+                            engine.runAndWait()
+                    engine = pyttsx3.init() #tts engine
+                    ques = ("Do you want to read the full text")
+                    engine.setProperty('voice', voices[0].id)
+                    engine.say(ques)
+                    engine.runAndWait()
+                    with sr.Microphone() as source:
+                        r.adjust_for_ambient_noise(source)
+                        AppKit.NSBeep()
+                        audio_data = r.record(source, duration=5)  
+                        try:
+                        # using google speech recognition
+                            text = r.recognize_google(audio_data)
+                            if text == 'yes':   
+                                de_split = pagdic[heading].split("$$")
+                                #print(de_split)
+                                for po in range(0, len(de_split), 2):
+                                    txt1 = de_split[po]
+                                    txt2 = de_split[po+1]
+                                    print(txt1, txt2)
+                                    if(txt1 != ''):
                                         engine.setProperty('voice', voices[0].id)
-                                        engine.say(comm) 
-                                        engine.runAndWait()
-                                    curr+=1
-                                    break
-                                elif text == "previous heading":
-                                    if(curr == 0):
-                                        comm ="This is the first heading."
-                                        engine.setProperty('voice', voices[0].id)
-                                        engine.say(comm)
-                                        engine.runAndWait()   
-                                        continue          
-                                    curr-=1
-                                    break
-                                elif text == 'yes':
-                                    inp = "Do you want to read the summary " 
+                                        engine.say(txt1)
                                     engine.setProperty('voice', voices[0].id)
-                                    engine.say(inp) 
+                                    engine.say(txt2)
                                     engine.runAndWait()
-                                    while(True):
-                                        with sr.Microphone() as source:
-                                            r.adjust_for_ambient_noise(source)
-                                            AppKit.NSBeep()
-                                            audio_data = r.record(source, duration=5)
-                                            try:
+                                    if txt2 not in final_a_tags:
+                                        continue
+                                    ques = "Do you want to read more about " + txt2
+                                    engine.setProperty('voice', voices[0].id)
+                                    engine.say(ques)
+                                    engine.runAndWait()
+                                    with sr.Microphone() as source:
+                                        r.adjust_for_ambient_noise(source)
+                                        AppKit.NSBeep()
+                                        audio_data = r.record(source, duration=5)
+                                        try:
                                             # using google speech recognition
-                                                text = r.recognize_google(audio_data)
-                                                if text == 'no':
-                                                    break
-                                                elif text == 'yes':
-                                                    summ = wikipedia.summary(txt2)
-                                                    engine.setProperty('voice', voices[0].id)
-                                                    engine.say(summ) 
-                                                    engine.runAndWait()
-                                                    break
-                                            except:
-                                                comm=("Sorry, I did not get that. Please repeat")
+                                            text = r.recognize_google(audio_data)
+                                            if text == 'no':
+                                                continue
+                                            elif text == 'go back':
+                                                return 1
+                                            elif text == 'stop':
+                                                comm ="Thanks for using our application"
                                                 engine.setProperty('voice', voices[0].id)
-                                                engine.say(comm)
+                                                engine.say(comm) 
                                                 engine.runAndWait()
-                                    val = navigation("https://en.wikipedia.org" + a_dic[de_split[po+1]])
-                                    if(val == -1):
-                                        return -1
-                                    break
-                            except:
-                               comm=("Sorry, I did not get that")
-                               engine.setProperty('voice', voices[0].id)
-                               engine.say(comm)
-                               engine.runAndWait()
-                               po-=2
+                                                return -1
+                                            elif text == "next heading":
+                                                if(curr == len(headings) -1):
+                                                    comm ="We have reached the end of the page."
+                                                    engine.setProperty('voice', voices[0].id)
+                                                    engine.say(comm) 
+                                                    engine.runAndWait()
+                                                curr+=1
+                                                break
+                                            elif text == "previous heading":
+                                                if(curr == 0):
+                                                    comm ="This is the first heading."
+                                                    engine.setProperty('voice', voices[0].id)
+                                                    engine.say(comm)
+                                                    engine.runAndWait()   
+                                                    continue          
+                                                curr-=1
+                                                break
+                                            elif text == 'yes':
+                                                inp = "Do you want to read the summary " 
+                                                engine.setProperty('voice', voices[0].id)
+                                                engine.say(inp) 
+                                                engine.runAndWait()
+                                                while(True):
+                                                    with sr.Microphone() as source:
+                                                        r.adjust_for_ambient_noise(source)
+                                                        AppKit.NSBeep()
+                                                        audio_data = r.record(source, duration=5)
+                                                        try:
+                                                        # using google speech recognition
+                                                            text = r.recognize_google(audio_data)
+                                                            if text == 'no':
+                                                                break
+                                                            elif text == 'yes':
+                                                                summ = wikipedia.summary(txt2)
+                                                                engine.setProperty('voice', voices[0].id)
+                                                                engine.say(summ) 
+                                                                engine.runAndWait()
+                                                                break
+                                                        except:
+                                                            comm=("Sorry, I did not get that. Please repeat")
+                                                            engine.setProperty('voice', voices[0].id)
+                                                            engine.say(comm)
+                                                            engine.runAndWait()
+                                                val = navigation("https://en.wikipedia.org" + a_dic[de_split[po+1]])
+                                                if(val == -1):
+                                                    return -1
+                                                break
+                                        except:
+                                            comm=("Sorry, I did not get that")
+                                            engine.setProperty('voice', voices[0].id)
+                                            engine.say(comm)
+                                            engine.runAndWait()
+                                            po-=2
+                        except:
+                            comm=("Sorry, I did not get that")
+                            engine.setProperty('voice', voices[0].id)
+                            engine.say(comm)
+                            engine.runAndWait()
             except:
                 comm=("Sorry, I did not get that")
                 engine.setProperty('voice', voices[0].id)
